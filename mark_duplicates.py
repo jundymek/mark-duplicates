@@ -1,93 +1,108 @@
 # -*- coding: utf-8 -*-
-import getopt
+
+import argparse
 import sys
 import os.path
+
 import nltk.data
 from nltk.tokenize import sent_tokenize, blankline_tokenize, word_tokenize
 from colorama import init, Style, Fore
 
 
-def usage():
-    print(f'Usage: {sys.argv[0]} [-s: <INT> -f <STR>]')
-    print('Options:')
-    print('     -h, --help           Show help.')
-    print('     -s, --space          Set spacing between occurrences of words.')
-    print('     -f, --file           Set filename to process.')
-
-
-def main():
-    space = 2
-    file = 'test.txt'
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "hs:f:", ["help", "file"])
-    except getopt.GetoptError as err:
-        # print help information and exit:
-        print(err)  # will print something like "option -a not recognized"
-        usage()
+class MyParser(argparse.ArgumentParser):
+    def error(self, message):
+        sys.stderr.write('error: %s\n' % message)
+        self.print_help()
         sys.exit(2)
-    for opt, arg in opts:
-        print(opt)
-        if opt in ("-s", "--space"):
-            try:
-                space = int(arg)
-            except ValueError:
-                usage()
-                sys.exit(2)
-        elif opt in ("-f", "--file"):
-            if os.path.exists(arg):
-                file = arg
-            else:
-                sys.exit(f'No such file or directory: {arg}')
-        else:
-            usage()
-            sys.exit(0)
-    with open(file, 'r', encoding='utf-8') as file:
-        text1 = MarkDuplicates(file, space)
-    text1.mark_duplicates()
+
+
+def parse_arguments():
+    # Parse command line arguments
+    parser = MyParser()
+    parser.add_argument("file", type=str,
+                        help="filename to proceed")
+    parser.add_argument("-s", "--space", type=int, default=1,
+                        help="space between occurrences of words <INT, default=1>")
+    parser.add_argument("-w", "--word", type=int, default=4,
+                        help="length of words to check <INT, default=4>")
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+    args = parser.parse_args()
+    space = args.space
+    if os.path.exists(args.file):
+        filename = args.file
+    else:
+        print(f'No such file or directory: {args.file}')
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
+    # open file and mark duplicates
+    with open(filename, 'r', encoding='utf-8') as file:
+        result = MarkDuplicates(file, space, filename, args.word)
+    result.mark_duplicates()
+
+
+def get_indices(word, sentences, space):
+    indices = []
+    for i, elem in enumerate(sentences):
+        for w in word_tokenize(elem):
+            if w.lower() == word.lower():
+                indices.append(i)
+    spaced_indices = []
+    for i in range(1, len(indices)):
+        if indices[i] - indices[i - 1] <= space:
+            if indices[i - 1] not in spaced_indices:
+                spaced_indices.append(indices[i - 1])
+            if indices[i] not in spaced_indices:
+                spaced_indices.append(indices[i])
+    return spaced_indices
 
 
 class MarkDuplicates:
 
-    def __init__(self, file, space):
+    def __init__(self, file, space, filename, wordlength):
+        self.filename = filename
         self.text = file.read()
         self.space = space
+        self.word = wordlength
 
     def mark_duplicates(self):
         marked_text = ''
         par_nr = 0
+        html_start = "<span style='color:red; text-decoration:underline'>"
+        html_stop = "</span>"
+        marked_words = 0
         for paragraph in blankline_tokenize(self.text):
             par_nr += 1
             marked_paragraph = ''
             sentences = sent_tokenize(paragraph)
-            temp = {}
-            for index, word in enumerate(word_tokenize(paragraph)):
-                for i, s in enumerate(sentences):
-                    if word in temp:
-                        if (temp[word] - 2 > 0 and len(word) > 5) or word.lower() in sentences[i - 2].lower():
-                            last = marked_paragraph.lower().rfind(word)
-                            marked_paragraph = marked_paragraph.replace(marked_paragraph[last:last + len(word)],
-                                                                        f'{Fore.GREEN}' +
-                                                                        f'{marked_paragraph[last:last + len(word)]}' +
-                                                                        f'{Style.RESET_ALL}', 1)
-                            marked_paragraph += f' {Fore.GREEN}{word}{Style.RESET_ALL}'
-                            break
+            for ind in range(len(sentences)):
+                for word in word_tokenize(sentences[ind]):
+                    if len(word) > self.word:
+                        spaced_indices = get_indices(word, sentences, self.space)
+                        if ind in spaced_indices:
+                            marked_paragraph += f'{html_start} {word}{html_stop}'
+                            marked_words += 1
                         else:
-                            temp[word.lower()] = index
-                            marked_paragraph += f' {word}'
-                            break
+                            if word not in ['.', ','] and len(marked_paragraph) > 0:
+                                marked_paragraph += f' {word}'
+                            else:
+                                marked_paragraph += f'{word}'
                     else:
-                        if len(word) > 5:
-                            temp[word.lower()] = index
                         if word not in ['.', ','] and len(marked_paragraph) > 0:
                             marked_paragraph += f' {word}'
                         else:
                             marked_paragraph += f'{word}'
-                        break
-            print(f'PARAGRAPH {par_nr} \n\n{marked_paragraph}\n')
-        return marked_text
+            marked_text += f'PARAGRAPH {par_nr} <br><br>{marked_paragraph}<br><br>'
+        with open(f"output_{os.path.splitext(self.filename)[0]}.html", 'w+', encoding='utf-8') as files:
+            files.write(f'{marked_text}')
+        print(f'{Fore.GREEN}{marked_words}{Style.RESET_ALL} words was marked as duplicates')
+        print(
+            f'Your output file : {Fore.GREEN}output_{os.path.splitext(self.filename)[0]}.html{Style.RESET_ALL}')
 
 
 if __name__ == "__main__":
     init(autoreset=True)
     nltk.download('punkt', quiet=True)
-    main()
+    parse_arguments()
