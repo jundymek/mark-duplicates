@@ -20,7 +20,7 @@ class MyParser(argparse.ArgumentParser):
 def parse_arguments(parser):
     # Parse command line arguments
 
-    parser.add_argument("file", type=str,
+    parser.add_argument("-f", "--file", type=str,
                         help="filename to proceed")
     parser.add_argument("-s", "--space", type=int, default=1,
                         help="space between occurrences of words <INT, default=1>")
@@ -36,6 +36,8 @@ def check_arguments(parser, args):
         parser.error(message='Not valid .txt file. Program accepts only .txt files.')
     if not os.path.exists(args.file):
         parser.error(message=f'No such file or directory: {args.file}')
+    if args.word < 2:
+        parser.error(message=f'Word length must be at least 1.')
 
 
 class MarkDuplicates:
@@ -72,7 +74,9 @@ class MarkDuplicates:
     def run(self):
         self.open_file()
         self.read_text()
-        self.write_to_file()
+        if len(self.marked_text) > 0:
+            self.write_to_file()
+        self.final_output_message()
         if self.verbose:
             print(self.verbose_mode_output)
 
@@ -91,29 +95,30 @@ class MarkDuplicates:
             self.verbose_mode_paragraph = ''
             self.marked_paragraph = ''
             self.paragraph_nr += 1
-            sentences = sent_tokenize(paragraph)
-            self.read_sentences(paragraph, sentences)
+            self.sentences = sent_tokenize(paragraph)
+            self.read_sentences()
             self.marked_text += f'PARAGRAPH {self.paragraph_nr} <br><br>{self.marked_paragraph}<br><br>'
             self.verbose_mode_output += f'PARAGRAPH {self.paragraph_nr} \n\n{self.verbose_mode_paragraph}\n\n'
 
-    def read_sentences(self, paragraph, sentences):
-        for ind in range(len(sentences)):
-            self.read_single_sentence(paragraph, sentences, sentences[ind], ind)
+    def read_sentences(self):
+        for ind in range(len(self.sentences)):
+            self.sentence = self.sentences[ind]
+            self.ind = ind
+            self.read_single_sentence()
 
-    def read_single_sentence(self, paragraph, sentences, sentence, ind):
-        for word in word_tokenize(sentence):
-            self.check_duplicates(paragraph, sentences, word, ind)
+    def read_single_sentence(self):
+        for word in word_tokenize(self.sentence):
+            self.check_duplicates(word)
 
-    def check_duplicates(self, paragraph, sentences, word, ind):
+    def check_duplicates(self, word):
         if len(word) > self.word_length:
-            spaced_indices = self.get_indices(word, sentences, self.space)
-            if ind in spaced_indices:
+            spaced_indices = self.get_indices(word, self.sentences, self.space)
+            if self.ind in spaced_indices:
                 self.mark_duplicates_in_paragraph(word)
             else:
                 self.add_normal_text_to_output(word)
         else:
             self.add_normal_text_to_output(word)
-        return self
 
     def mark_duplicates_in_paragraph(self, word):
         html_start = "<span style='color:red; text-decoration:underline'>"
@@ -122,7 +127,6 @@ class MarkDuplicates:
         self.marked_words += 1
         if self.verbose:
             self.verbose_mode_paragraph += f'{Fore.GREEN} {word}{Style.RESET_ALL}'
-        return self
 
     def add_normal_text_to_output(self, word):
         if word not in ['.', ','] and len(self.marked_paragraph) > 0:
@@ -133,16 +137,18 @@ class MarkDuplicates:
             self.marked_paragraph += f'{word}'
             if self.verbose:
                 self.verbose_mode_paragraph += f'{word}'
-        return self
 
     def write_to_file(self):
-        with open(f"output_{os.path.splitext(self.filename)[0]}.html", 'w+', encoding='utf-8') as files:
-            files.write(f'{self.marked_text}')
+        with open(f"output_{os.path.splitext(self.filename)[0]}.html", 'w+', encoding='utf-8') as file:
+            file.write(f'{self.marked_text}')
+
+    def final_output_message(self):
         print(55 * '*')
         print(f'{Fore.GREEN}{self.marked_words}{Style.RESET_ALL} words was marked as duplicates')
-        print(
-            f'Your output file : {Fore.GREEN}output_{os.path.splitext(self.filename)[0]}.html{Style.RESET_ALL}')
-        print(55 * '*')
+        if len(self.marked_text) > 0:
+            print(
+                f'Your output file : {Fore.GREEN}output_{os.path.splitext(self.filename)[0]}.html{Style.RESET_ALL}')
+            print(55 * '*')
 
 
 if __name__ == "__main__":

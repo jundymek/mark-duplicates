@@ -3,7 +3,7 @@ import argparse
 import os
 from unittest import TestCase
 import unittest
-from mark_duplicates import MarkDuplicates
+from mark_duplicates import MarkDuplicates, check_arguments
 
 TESTDATA_FILENAME = os.path.join(os.path.dirname(__file__), 'test.txt')
 TESTDATA_EMPTY_FILE = os.path.join(os.path.dirname(__file__), 'empty_test.txt')
@@ -14,7 +14,7 @@ class TestMarkDuplicates(TestCase):
     def setUp(self):
         self.text = open(TESTDATA_FILENAME, encoding='utf-8')
         self.f = 'test.txt'
-        self.empty_file = open(TESTDATA_EMPTY_FILE)
+        # self.empty_file = open(TESTDATA_EMPTY_FILE)
 
     def tearDown(self):
         self.text.close()
@@ -37,14 +37,12 @@ class TestMarkDuplicates(TestCase):
         test = MarkDuplicates(1, self.f, 4, verbose=False)
         test.open_file()
         output = test.read_text()
-        print(output)
         self.assertEqual(len(output), 2)
 
     def test_get_list_of_paragraphs_empty_file(self):
         test = MarkDuplicates(1, 'empty_test.txt', 4, verbose=False)
         test.open_file()
         output = test.read_text()
-        print(output)
         self.assertEqual(len(output), 0)
 
 
@@ -70,8 +68,13 @@ class TestArgParse(TestCase):
         args = ["-x", "xxx"]
         with self.assertRaises(ValueError) as cm:
             self.parser.parse_args(args)
-        print('msg:', cm.exception)
         self.assertIn('unrecognized', str(cm.exception))
+
+    def test_word_length_less_than_1(self):
+        args = ["test.txt", "-w", "-5"]
+        with self.assertRaises(ValueError) as cm:
+            check_arguments(self.parser, self.parser.parse_args(args))
+        self.assertIn('Word length must be at least 1', str(cm.exception))
 
     # def test_wrong_filename(self):
     #     args = ["ssxxxxx"]
