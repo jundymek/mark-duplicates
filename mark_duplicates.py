@@ -14,18 +14,19 @@ class MyParser(argparse.ArgumentParser):
         sys.stderr.write(f'{Fore.RED}error: %s\n{Style.RESET_ALL}' % message)
         print(50 * '*')
         self.print_help()
-        sys.exit(2)
+        sys.exit()
 
 
 def parse_arguments(parser):
-    # Parse command line arguments
+    """Parse command line arguments
+    """
 
-    parser.add_argument("-f", "--file", type=str,
-                        help="filename to proceed")
+    parser.add_argument("file", type=str,
+                        help="filename to proceed <STR, .txt file>")
     parser.add_argument("-s", "--space", type=int, default=1,
-                        help="space between occurrences of words <INT, default=1>")
+                        help="space between occurrences of words (measured by sentences) <INT, default=1>")
     parser.add_argument("-w", "--word", type=int, default=4,
-                        help="length of words to check <INT, default=4>")
+                        help="length of words to check <INT, default=4, min=3>")
     parser.add_argument("-v", "--verbose", action="store_true", help="print output to terminal")
     arguments = parser.parse_args()
     return arguments
@@ -36,8 +37,8 @@ def check_arguments(parser, args):
         parser.error(message='Not valid .txt file. Program accepts only .txt files.')
     if not os.path.exists(args.file):
         parser.error(message=f'No such file or directory: {args.file}')
-    if args.word < 2:
-        parser.error(message=f'Word length must be at least 1.')
+    if args.word < 3:
+        parser.error(message=f'Word length must be at least 3.')
 
 
 class MarkDuplicates:
@@ -46,7 +47,7 @@ class MarkDuplicates:
         self.filename = filename
         self.text = ''
         self.space = space
-        self.word_length = length
+        self.minimum_word_length = length
         self.verbose = verbose
         self.verbose_mode_paragraph = ''
         self.marked_paragraph = ''
@@ -111,7 +112,7 @@ class MarkDuplicates:
             self.check_duplicates(word)
 
     def check_duplicates(self, word):
-        if len(word) > self.word_length:
+        if len(word) > self.minimum_word_length:
             spaced_indices = self.get_indices(word, self.sentences, self.space)
             if self.ind in spaced_indices:
                 self.mark_duplicates_in_paragraph(word)
@@ -140,6 +141,7 @@ class MarkDuplicates:
 
     def write_to_file(self):
         with open(f"output_{os.path.splitext(self.filename)[0]}.html", 'w+', encoding='utf-8') as file:
+            file.write('<meta charset="utf-8"/>')
             file.write(f'{self.marked_text}')
 
     def final_output_message(self):

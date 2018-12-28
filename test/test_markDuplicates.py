@@ -5,7 +5,7 @@ from unittest import TestCase
 import unittest
 from mark_duplicates import MarkDuplicates, check_arguments
 
-TESTDATA_FILENAME = os.path.join(os.path.dirname(__file__), 'test.txt')
+TESTDATA_FILENAME = 'test.txt'
 TESTDATA_EMPTY_FILE = os.path.join(os.path.dirname(__file__), 'empty_test.txt')
 
 
@@ -13,11 +13,14 @@ class TestMarkDuplicates(TestCase):
 
     def setUp(self):
         self.text = open(TESTDATA_FILENAME, encoding='utf-8')
-        self.f = 'test.txt'
-        # self.empty_file = open(TESTDATA_EMPTY_FILE)
+        self.normal_test_file = TESTDATA_FILENAME
+        self.empty_file = TESTDATA_EMPTY_FILE
 
     def tearDown(self):
         self.text.close()
+        for file in os.path.dirname(os.path.abspath(__file__)):
+            if file.startswith('output'):
+                os.remove(file)
 
     def test_get_indices(self):
         sentences = ['My first sentence.', 'Next Sentences line 1.', 'My sentence.',
@@ -34,16 +37,21 @@ class TestMarkDuplicates(TestCase):
         self.assertEqual(output, expected)
 
     def test_get_list_of_paragraphs_normal_file(self):
-        test = MarkDuplicates(1, self.f, 4, verbose=False)
+        test = MarkDuplicates(1, self.normal_test_file, 4, verbose=False)
         test.open_file()
         output = test.read_text()
         self.assertEqual(len(output), 2)
 
     def test_get_list_of_paragraphs_empty_file(self):
-        test = MarkDuplicates(1, 'empty_test.txt', 4, verbose=False)
+        test = MarkDuplicates(1, self.empty_file, 4, verbose=False)
         test.open_file()
         output = test.read_text()
         self.assertEqual(len(output), 0)
+
+    def test_create_output_file(self):
+        test = MarkDuplicates(1, self.normal_test_file, 4, verbose=False)
+        test.run()
+        assert os.path.exists(f'output_{self.normal_test_file[:-4]}.html')
 
 
 class ErrorRaisingArgumentParser(argparse.ArgumentParser):
@@ -57,12 +65,12 @@ class TestArgParse(TestCase):
     def setUp(self):
         self.parser = ErrorRaisingArgumentParser()
         self.parser.add_argument(
-            "file", type=str,
+            "-f", "--file", type=str,
             help="filename to proceed")
         self.parser.add_argument(
             "-w", "--word",
             type=int,
-            default=4, )
+            default=4)
 
     def test_unrecognized_argument(self):
         args = ["-x", "xxx"]
@@ -71,17 +79,16 @@ class TestArgParse(TestCase):
         self.assertIn('unrecognized', str(cm.exception))
 
     def test_word_length_less_than_1(self):
-        args = ["test.txt", "-w", "-5"]
+        args = ["-f", "test.txt", "-w", "-5"]
         with self.assertRaises(ValueError) as cm:
             check_arguments(self.parser, self.parser.parse_args(args))
-        self.assertIn('Word length must be at least 1', str(cm.exception))
+        self.assertIn('Word length must be at least 3', str(cm.exception))
 
-    # def test_wrong_filename(self):
-    #     args = ["ssxxxxx"]
-    #     with self.assertRaises(FileNotFoundError) as cm:
-    #         self.parser.parse_args(args)
-    #     print('msg:', cm.exception)
-    #     self.assertIn('unrecognized', str(cm.exception))
+    def test_wrong_filename(self):
+        args = ["-f", "ssxxxxx.txt"]
+        with self.assertRaises(ValueError) as cm:
+            check_arguments(self.parser, self.parser.parse_args(args))
+        self.assertIn('No such file or directory', str(cm.exception))
 
 
 if __name__ == '__main__':
