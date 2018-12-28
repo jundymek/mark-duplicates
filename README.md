@@ -5,7 +5,7 @@ Simple python script to mark duplicates in a text file. It is a tool for writers
 
 ## Features
 
-  - Examines indicated file
+  - Examines indicated file (.txt files are allowed)
   - Marks words which are repeated in neighboring sentences
   - You can specify the length of words to check (eg. do not check words like but, with, me etc.)
   - You can specify the distance between sentences
@@ -16,6 +16,9 @@ Simple python script to mark duplicates in a text file. It is a tool for writers
 ```
 USAGE
   mark_duplicates.py [-h] [-s SPACE] [-w WORD] [-v] file
+  
+POSITIONAL ARGUMENTS
+  file                      filename to proceed <STR, .txt file>
 
 OPTIONAL ARGUMENTS
   -h, --help                show this help message and exit
