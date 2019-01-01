@@ -5,22 +5,18 @@ from unittest import TestCase
 import unittest
 from mark_duplicates import MarkDuplicates, check_arguments
 
-TESTDATA_FILENAME = 'test.txt'
-TESTDATA_EMPTY_FILE = os.path.join(os.path.dirname(__file__), 'empty_test.txt')
-
 
 class TestMarkDuplicates(TestCase):
 
     def setUp(self):
-        self.text = open(TESTDATA_FILENAME, encoding='utf-8')
-        self.normal_test_file = TESTDATA_FILENAME
-        self.empty_file = TESTDATA_EMPTY_FILE
+        self.path = os.path.dirname(os.path.abspath(__file__))
+        self.normal_test_file = 'test.txt'
+        self.empty_file = 'empty_test.txt'
 
     def tearDown(self):
-        self.text.close()
-        for file in os.path.dirname(os.path.abspath(__file__)):
+        for file in os.listdir(self.path):
             if file.startswith('output'):
-                os.remove(file)
+                os.remove(f'{self.path}/{file}')
 
     def test_get_indices(self):
         sentences = ['My first sentence.', 'Next Sentences line 1.', 'My sentence.',
@@ -51,7 +47,7 @@ class TestMarkDuplicates(TestCase):
     def test_create_output_file(self):
         test = MarkDuplicates(1, self.normal_test_file, 4, verbose=False)
         test.run()
-        assert os.path.exists(f'output_{self.normal_test_file[:-4]}.html')
+        assert os.path.exists(f'{self.path}/output_{self.normal_test_file[:-4]}.html')
 
 
 class ErrorRaisingArgumentParser(argparse.ArgumentParser):
